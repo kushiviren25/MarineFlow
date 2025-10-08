@@ -1,0 +1,25 @@
+MARINEFLOW FEATURE ENGINEERING SUMMARY
+==================================================
+
+total_features: 47
+original_features: 42
+engineered_features: 5
+temporal_features: 12
+efficiency_features: 10
+financial_features: 6
+categorical_encoded: 10
+train_samples: 416
+val_samples: 89
+test_samples: 90
+
+Top 10 Most Important Features:
+overage_hours_chargeable: 0.6672
+laytime_vs_allowed: 0.3465
+pred_risk_score: 0.1287
+port_performance_score: 0.1045
+efficiency_vs_congestion: 0.1033
+port_congestion_index: 0.0765
+load_port_efficiency_rank: 0.0324
+rain_excluded_flag: 0.0318
+berth_wait_h: 0.0273
+allowed_laytime_h: 0.0257
