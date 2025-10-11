@@ -14,22 +14,46 @@ if PROJECT_ROOT not in sys.path:
 
 from preproc.data_exporter import save_complete_pipeline_outputs
 from preproc.config import FILE_PATHS, DATA_LEAKAGE_COLS
+from preproc.feature_builder import run_complete_feature_engineering
+
+# ------------------ TIMESTAMP PREPROCESSING ------------------
+def preprocess_timestamps(df):
+    """
+    Ensure required timestamp columns exist and are datetime.
+    Maps common alternative column names to expected ones.
+    """
+    timestamp_mapping = {
+        'depart_ts': ['depart_ts', 'departure_time', 'departure_date'],
+        'arrival_ts': ['arrival_ts', 'arrival_time', 'arrival_date']
+    }
+
+    for expected_col, possible_cols in timestamp_mapping.items():
+        for col in possible_cols:
+            if col in df.columns:
+                df[expected_col] = pd.to_datetime(df[col], errors='coerce')
+                break
+        else:
+            # If none of the possible columns exist, raise an error
+            raise ValueError(f"Missing required timestamp column: {expected_col}")
+
+    return df
 
 # ------------------ LOAD DATA ------------------
 train_df = pd.read_csv('marineflow_train.csv')
 validate_df = pd.read_csv('marineflow_validation.csv')
 test_df = pd.read_csv('marineflow_test.csv')
 
-# ------------------ PREPARE FEATURES & TARGETS ------------------
-def prepare_data(df, target_class, target_reg):
-    X = df.drop(columns=[target_class, target_reg])
-    y_class = df[target_class]
-    y_reg = df[target_reg]
-    return X, y_class, y_reg
+# ------------------ APPLY TIMESTAMP PREPROCESSING ------------------
+train_df = preprocess_timestamps(train_df)
+validate_df = preprocess_timestamps(validate_df)
+test_df = preprocess_timestamps(test_df)
 
-X_train, y_train_class, y_train_reg = prepare_data(train_df, 'demurrage_flag', 'demurrage_amount_usd')
-X_val, y_val_class, y_val_reg = prepare_data(validate_df, 'demurrage_flag', 'demurrage_amount_usd')
-X_test, y_test_class, y_test_reg = prepare_data(test_df, 'demurrage_flag', 'demurrage_amount_usd')
+# ------------------ COMPLETE FEATURE ENGINEERING ------------------
+full_df = pd.concat([train_df, validate_df, test_df], axis=0).reset_index(drop=True)
+(X_train_scaled, X_val_scaled, X_test_scaled, 
+ y_class_train, y_class_val, y_class_test,
+ y_reg_train, y_reg_val, y_reg_test,
+ scaler, label_encoders, feature_names, feature_importance) = run_complete_feature_engineering(full_df)
 
 # ------------------ RANDOM FOREST CLASSIFIER ------------------
 rfc = RandomForestClassifier(
@@ -40,17 +64,16 @@ rfc = RandomForestClassifier(
     random_state=42,
     n_jobs=-1
 )
-rfc.fit(X_train, y_train_class)
-y_pred_class = rfc.predict(X_val)
+rfc.fit(X_train_scaled, y_class_train)
+y_pred_class = rfc.predict(X_val_scaled)
 
 print("--- CLASSIFICATION METRICS ---")
-print("Accuracy:", accuracy_score(y_val_class, y_pred_class))
-print("Precision:", precision_score(y_val_class, y_pred_class))
-print("Recall:", recall_score(y_val_class, y_pred_class))
-print("F1:", f1_score(y_val_class, y_pred_class))
+print("Accuracy:", accuracy_score(y_class_val, y_pred_class))
+print("Precision:", precision_score(y_class_val, y_pred_class))
+print("Recall:", recall_score(y_class_val, y_pred_class))
+print("F1:", f1_score(y_class_val, y_pred_class))
 
-# Cross-validation
-cv_scores = cross_val_score(rfc, X_train, y_train_class, cv=5, scoring='f1')
+cv_scores = cross_val_score(rfc, X_train_scaled, y_class_train, cv=5, scoring='f1')
 print("CV F1 Scores:", cv_scores)
 print("Mean CV F1:", np.mean(cv_scores))
 
@@ -63,20 +86,17 @@ rfr = RandomForestRegressor(
     random_state=42,
     n_jobs=-1
 )
-rfr.fit(X_train, y_train_reg)
-y_pred_reg = rfr.predict(X_val)
+rfr.fit(X_train_scaled, y_reg_train)
+y_pred_reg = rfr.predict(X_val_scaled)
 
 print("--- REGRESSION METRICS ---")
-print("RMSE:", np.sqrt(mean_squared_error(y_val_reg, y_pred_reg)))
-print("MSE:", mean_squared_error(y_val_reg, y_pred_reg))
-print("MAE:", mean_absolute_error(y_val_reg, y_pred_reg))
+print("RMSE:", np.sqrt(mean_squared_error(y_reg_val, y_pred_reg)))
+print("MSE:", mean_squared_error(y_reg_val, y_pred_reg))
+print("MAE:", mean_absolute_error(y_reg_val, y_pred_reg))
 
 # ------------------ FEATURE IMPORTANCE ------------------
-feature_importance = pd.DataFrame({
-    'feature': X_train.columns,
-    'importance_class': rfc.feature_importances_,
-    'importance_reg': rfr.feature_importances_
-})
+feature_importance['importance_class'] = rfc.feature_importances_
+feature_importance['importance_reg'] = rfr.feature_importances_
 
 # ------------------ ENSURE SAVE DIRECTORIES EXIST ------------------
 for path in FILE_PATHS.values():
@@ -86,11 +106,11 @@ for path in FILE_PATHS.values():
 
 # ------------------ SAVE COMPLETE PIPELINE ------------------
 save_complete_pipeline_outputs(
-    X_train, X_val, X_test,
-    y_train_class, y_val_class, y_test_class,
-    y_train_reg, y_val_reg, y_test_reg,
-    scaler=None,  # no scaler
-    label_encoders={},  # no label encoders
-    feature_names=X_train.columns,
+    X_train_scaled, X_val_scaled, X_test_scaled,
+    y_class_train, y_class_val, y_class_test,
+    y_reg_train, y_reg_val, y_reg_test,
+    scaler=scaler,
+    label_encoders=label_encoders,
+    feature_names=feature_names,
     feature_importance=feature_importance
 )

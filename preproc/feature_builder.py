@@ -11,7 +11,7 @@ from sklearn.preprocessing import StandardScaler, LabelEncoder
 from sklearn.model_selection import train_test_split
 from sklearn.feature_selection import mutual_info_classif
 import logging
-from config import DATA_LEAKAGE_COLS, TARGET_COLS
+from .config import DATA_LEAKAGE_COLS, TARGET_COLS
 
 # Configure logging
 logger = logging.getLogger(__name__)

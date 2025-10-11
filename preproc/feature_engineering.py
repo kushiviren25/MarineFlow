@@ -12,9 +12,9 @@ import logging
 import warnings
 
 # Import utility modules
-from data_loader import load_preprocessed_data
-from feature_builder import run_complete_feature_engineering
-from data_exporter import save_complete_pipeline_outputs
+from .data_loader import load_preprocessed_data
+from .feature_builder import run_complete_feature_engineering
+from .data_exporter import save_complete_pipeline_outputs
 
 # Configure logging
 logging.basicConfig(

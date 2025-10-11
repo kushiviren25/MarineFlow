@@ -8,7 +8,7 @@
 import pandas as pd
 import numpy as np
 import logging
-from config import TIMESTAMP_COLS, NUMERIC_COLS, TARGET_COLS, FILE_PATHS
+from .config import TIMESTAMP_COLS, NUMERIC_COLS, TARGET_COLS, FILE_PATHS
 
 # Configure logging
 logger = logging.getLogger(__name__)
