@@ -1,0 +1,25 @@
+MARINEFLOW FEATURE ENGINEERING SUMMARY
+==================================================
+
+total_features: 96
+original_features: 42
+engineered_features: 54
+temporal_features: 12
+efficiency_features: 10
+financial_features: 6
+categorical_encoded: 26
+train_samples: 416
+val_samples: 89
+test_samples: 90
+
+Top 10 Most Important Features:
+laytime_efficiency: 0.3465
+efficiency_vs_congestion: 0.1033
+port_performance_score: 0.1022
+port_congestion_index: 0.0761
+cp_weather_clause_WWD: 0.0464
+cargo_type_Diesel: 0.0402
+berth_wait_h: 0.0352
+discharge_port_Qingdao: 0.0338
+prior_claims_6m: 0.0314
+cp_weather_clause_SATSHEX: 0.0308
