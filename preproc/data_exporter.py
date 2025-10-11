@@ -8,7 +8,7 @@
 import pandas as pd
 import pickle
 import logging
-from config import FILE_PATHS, DATA_LEAKAGE_COLS
+from .config import FILE_PATHS, DATA_LEAKAGE_COLS
 
 # Configure logging
 logger = logging.getLogger(__name__)
