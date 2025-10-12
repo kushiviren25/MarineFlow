@@ -3,6 +3,7 @@ from sklearn.ensemble import RandomForestClassifier,RandomForestRegressor
 from sklearn.model_selection import RandomizedSearchCV
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 from sklearn.metrics import mean_absolute_error,mean_squared_error,r2_score
+from xgboost import XGBClassifier,XGBRegressor
 import numpy as np 
 
 train_df = pd.read_csv('marineflow_train.csv')
@@ -71,29 +72,25 @@ random_search.fit(X_train_class,y_train_class)
 # best parameters 
 print(random_search.best_params_)
 
-# call the best estimator 
+# best estimator 
 best_rfc = random_search.best_estimator_
 
-# evaluate the validation data 
+
 y_pred_class = random_search.predict(X_val_class)
 
-# Eval metrics for validation
-print('VALIDATION DATA CLASSIFICATION')
-
-print('Accuracy:',accuracy_score(y_val_class,y_pred_class))
-print('Precision:',precision_score(y_val_class,y_pred_class))
-print('Recall:',recall_score(y_val_class,y_pred_class))
-print('F1:',f1_score(y_val_class,y_pred_class))
-
-print('TEST DATA CLASSIFICATION')
+print('----VALIDATION DATA CLASSIFICATION----')
+print('Accuracy:', round(accuracy_score(y_val_class, y_pred_class), 2))
+print('Precision:', round(precision_score(y_val_class, y_pred_class), 2))
+print('Recall:', round(recall_score(y_val_class, y_pred_class), 2))
+print('F1:', round(f1_score(y_val_class, y_pred_class), 2))
 
 y_test_class_pred = best_rfc.predict(X_test_class)
 
-print('Accuracy:',accuracy_score(y_test_class,y_test_class_pred ))
-print('Precision:',precision_score(y_test_class,y_test_class_pred ))
-print('Recall:',recall_score(y_test_class,y_test_class_pred ))
-print('F1:',f1_score(y_test_class,y_test_class_pred ))
-
+print('----TEST DATA CLASSIFICATION----')
+print('Accuracy:', round(accuracy_score(y_test_class, y_test_class_pred), 2))
+print('Precision:', round(precision_score(y_test_class, y_test_class_pred), 2))
+print('Recall:', round(recall_score(y_test_class, y_test_class_pred), 2))
+print('F1:', round(f1_score(y_test_class, y_test_class_pred), 2))
 
 # 2. RANDOM FOREST REGRESSOR 
 
@@ -124,27 +121,137 @@ print('best params',rsearch.best_params_)
 
 best_rfg = rsearch.best_estimator_
 
-print('VALIDATION DATA FOR REGRESSION')
+#  VALIDATION DATA FOR REGRESSION
+
 y_pred_reg = best_rfg.predict(X_val_reg)
 
-rmse = np.sqrt(mean_squared_error(y_val_reg,y_pred_reg))
+print('---VALIDATION DATA FOR REGRESSION---')
+print('RMSE:', round(np.sqrt(mean_squared_error(y_val_reg, y_pred_reg)), 2))
+print('MSE:', round(mean_squared_error(y_val_reg, y_pred_reg), 2))
+print('R2:', round(r2_score(y_val_reg, y_pred_reg), 2))
+print('MAE:', round(mean_absolute_error(y_val_reg, y_pred_reg), 2))
 
-print('RMSE:',rmse)
-print('MSE:',mean_squared_error(y_val_reg,y_pred_reg))
-print('R2:',r2_score(y_val_reg,y_pred_reg))
-print('MAE:',mean_absolute_error(y_val_reg,y_pred_reg))
-
-print('TEST DATA FOR REGRESSION')
+# TEST DATA FOR REGRESSION
 
 y_test_reg_pred = best_rfg.predict(X_test_reg)
 
-rmse = np.sqrt(mean_squared_error(y_test_reg,y_test_reg_pred))
+print('---TEST DATA FOR REGRESSION---')
+print('RMSE:', round(np.sqrt(mean_squared_error(y_test_reg, y_test_reg_pred)), 2))
+print('MSE:', round(mean_squared_error(y_test_reg, y_test_reg_pred), 2))
+print('R2:', round(r2_score(y_test_reg, y_test_reg_pred), 2))
+print('MAE:', round(mean_absolute_error(y_test_reg, y_test_reg_pred), 2))
 
-print('RMSE:',rmse)
-print('MSE:',mean_squared_error(y_test_reg,y_test_reg_pred))
-print('R2:',r2_score(y_test_reg,y_test_reg_pred))
-print('MAE:',mean_absolute_error(y_test_reg,y_test_reg_pred))
+# 3. XGBOOST CLASSIFIER
+
+print('XGBOOST CLASSIFIER')
+xgbc = XGBClassifier(
+    random_state=42,
+    n_jobs=-1,
+    objective='binary:logistic',
+    eval_metric='logloss'
+)
+
+xgbc_params = {
+    'n_estimators': [100, 200, 300, 500],
+    'max_depth': [3, 5, 7, 10],
+    'learning_rate': [0.01, 0.05, 0.1, 0.2],
+    'subsample': [0.6, 0.8, 1.0],
+    'colsample_bytree': [0.6, 0.8, 1.0],
+    'gamma': [0, 0.1, 0.2, 0.3],
+    'reg_alpha': [0, 0.1, 1],
+    'reg_lambda': [1, 1.5, 2]
+}
+
+xgbc_search = RandomizedSearchCV(
+    estimator=xgbc,
+    param_distributions=xgbc_params,
+    n_iter=10,
+    n_jobs=-1,
+    random_state=42,
+    scoring='f1_macro',
+    verbose=2,
+    cv=5
+)
+
+xgbc_search.fit(X_train_class, y_train_class)
+
+print('Best Parameters for XGBoost Classifier:', xgbc_search.best_params_)
+
+best_xgbc = xgbc_search.best_estimator_
+
+# VALIDATION CLASSIFICATION DATA 
+y_val_class_pred_xgb = best_xgbc.predict(X_val_class)
+
+print('----VALIDATION DATA CLASSIFICATION (XGBOOST)----')
+print('Accuracy:', round(accuracy_score(y_val_class, y_val_class_pred_xgb), 2))
+print('Precision:', round(precision_score(y_val_class, y_val_class_pred_xgb), 2))
+print('Recall:', round(recall_score(y_val_class, y_val_class_pred_xgb), 2))
+print('F1:', round(f1_score(y_val_class, y_val_class_pred_xgb), 2))
+
+# TEST CLASSIFICATION DATA 
+y_test_class_pred_xgb = best_xgbc.predict(X_test_class)
+
+print('----TEST DATA CLASSIFICATION (XGBOOST)----')
+print('Accuracy:', round(accuracy_score(y_test_class, y_test_class_pred_xgb), 2))
+print('Precision:', round(precision_score(y_test_class, y_test_class_pred_xgb), 2))
+print('Recall:', round(recall_score(y_test_class, y_test_class_pred_xgb), 2))
+print('F1:', round(f1_score(y_test_class, y_test_class_pred_xgb), 2))
 
 
 
 
+#  XGBOOST REGRESSOR
+print('XGBOOST REGRESSOR')
+
+xgbr = XGBRegressor(
+    random_state=42,
+    n_jobs=-1,
+    objective='reg:squarederror',
+    eval_metric='rmse'
+)
+
+xgbr_params = {
+    'n_estimators': [100, 200, 300, 500],
+    'max_depth': [3, 5, 7, 10],
+    'learning_rate': [0.01, 0.05, 0.1, 0.2],
+    'subsample': [0.6, 0.8, 1.0],
+    'colsample_bytree': [0.6, 0.8, 1.0],
+    'gamma': [0, 0.1, 0.2, 0.3],
+    'reg_alpha': [0, 0.1, 1],
+    'reg_lambda': [1, 1.5, 2]
+}
+
+xgbr_search = RandomizedSearchCV(
+    estimator=xgbr,
+    param_distributions=xgbr_params,
+    n_iter=10,
+    n_jobs=-1,
+    random_state=42,
+    verbose=2,
+    cv=5,
+    scoring='neg_mean_squared_error'
+)
+
+xgbr_search.fit(X_train_reg, y_train_reg)
+
+print('Best Parameters for XGBoost Regressor:', xgbr_search.best_params_)
+
+best_xgbr = xgbr_search.best_estimator_
+
+# VALIDATION REGRESSION DATA 
+y_val_reg_pred_xgb = best_xgbr.predict(X_val_reg)
+
+print('---VALIDATION DATA FOR REGRESSION (XGBOOST)---')
+print('RMSE:', round(np.sqrt(mean_squared_error(y_val_reg, y_val_reg_pred_xgb)), 2))
+print('MSE:', round(mean_squared_error(y_val_reg, y_val_reg_pred_xgb), 2))
+print('R2:', round(r2_score(y_val_reg, y_val_reg_pred_xgb), 2))
+print('MAE:', round(mean_absolute_error(y_val_reg, y_val_reg_pred_xgb), 2))
+
+# TEST REGRESSION DATA 
+y_test_reg_pred_xgb = best_xgbr.predict(X_test_reg)
+
+print('---TEST DATA FOR REGRESSION (XGBOOST)---')
+print('RMSE:', round(np.sqrt(mean_squared_error(y_test_reg, y_test_reg_pred_xgb)), 2))
+print('MSE:', round(mean_squared_error(y_test_reg, y_test_reg_pred_xgb), 2))
+print('R2:', round(r2_score(y_test_reg, y_test_reg_pred_xgb), 2))
+print('MAE:', round(mean_absolute_error(y_test_reg, y_test_reg_pred_xgb), 2))
