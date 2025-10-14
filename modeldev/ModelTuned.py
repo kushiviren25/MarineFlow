@@ -4,7 +4,10 @@ from sklearn.model_selection import RandomizedSearchCV
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 from sklearn.metrics import mean_absolute_error,mean_squared_error,r2_score
 from xgboost import XGBClassifier,XGBRegressor
+from lightgbm import LGBMClassifier, LGBMRegressor
 import numpy as np 
+import warnings 
+warnings.filterwarnings('ignore')
 
 train_df = pd.read_csv('marineflow_train.csv')
 validate_df = pd.read_csv('marineflow_validation.csv')
@@ -62,7 +65,7 @@ random_search = RandomizedSearchCV(
    n_jobs=-1,
    random_state=42,
    scoring='f1_macro',
-   verbose = 2,
+   verbose = 0,
    cv = 5
 )
 
@@ -70,7 +73,7 @@ random_search = RandomizedSearchCV(
 random_search.fit(X_train_class,y_train_class)
 
 # best parameters 
-print(random_search.best_params_)
+best_params_rfc = random_search.best_params_
 
 # best estimator 
 best_rfc = random_search.best_estimator_
@@ -94,7 +97,8 @@ print('F1:', round(f1_score(y_test_class, y_test_class_pred), 2))
 
 # 2. RANDOM FOREST REGRESSOR 
 
-rfg = RandomForestRegressor(random_state=42,n_jobs=-1)
+rfg = RandomForestRegressor(
+    random_state=42,n_jobs=-1)
 
 params = {
     'n_estimators' : [100,200,300],
@@ -110,7 +114,7 @@ rsearch = RandomizedSearchCV(
     n_iter=10,
     n_jobs=-1,
     random_state=42,
-    verbose =2,
+    verbose =0,
     cv = 5,
     scoring ='neg_mean_squared_error'
 )
@@ -178,6 +182,7 @@ xgbc_search.fit(X_train_class, y_train_class)
 print('Best Parameters for XGBoost Classifier:', xgbc_search.best_params_)
 
 best_xgbc = xgbc_search.best_estimator_
+best_params_xgbc = xgbc_search.best_params_
 
 # VALIDATION CLASSIFICATION DATA 
 y_val_class_pred_xgb = best_xgbc.predict(X_val_class)
@@ -255,3 +260,69 @@ print('RMSE:', round(np.sqrt(mean_squared_error(y_test_reg, y_test_reg_pred_xgb)
 print('MSE:', round(mean_squared_error(y_test_reg, y_test_reg_pred_xgb), 2))
 print('R2:', round(r2_score(y_test_reg, y_test_reg_pred_xgb), 2))
 print('MAE:', round(mean_absolute_error(y_test_reg, y_test_reg_pred_xgb), 2))
+
+# HYPERPARAMETER TUNING FOR LIGHTGBM 
+
+# LIGHT GBM CLASSIFIER 
+lightgbmc = LGBMClassifier(
+    n_jobs=-1,
+    objective='binary',
+    random_state=42
+)
+
+gbmc_params = {
+    'num_leaves' : [15, 31, 63],
+    'max_depth' : [3, 5, 7, -1],
+    'learning_rate' : [0.01, 0.05, 0.1],
+    'n_estimators' : [100, 200, 300],
+    'subsample' : [0.7, 0.8, 0.9],
+    'colsample_bytree' : [0.7, 0.8, 0.9],
+    'random_state' : [42]
+}
+
+
+ran_search = RandomizedSearchCV(
+    estimator= lightgbmc,
+    param_distributions= gbmc_params,
+    n_iter=10,
+    n_jobs=-1,
+    random_state=42,
+    cv = 5 ,
+    verbose = 2,
+    scoring = 'f1_macro'
+)
+
+
+ran_search.fit(X_train_class,y_train_class)
+
+best_gbmc_params = ran_search.best_params_
+
+best_gbmc = ran_search.best_estimator_
+
+y_val_class_pred_gbmc = ran_search.predict(X_val_class)
+
+print('----VALIDATION DATA CLASSIFICATION (LIGHT GBM)----')
+print('Accuracy:', round(accuracy_score(y_val_class, y_val_class_pred_gbmc), 2))
+print('Precision:', round(precision_score(y_val_class, y_val_class_pred_gbmc), 2))
+print('Recall:', round(recall_score(y_val_class, y_val_class_pred_gbmc), 2))
+print('F1:', round(f1_score(y_val_class, y_val_class_pred_gbmc), 2))
+
+
+y_test_class_pred_gbmc = ran_search.predict(X_test_class)
+
+print('---- TESTING DATA CLASSIFICATION (LIGHT GBM)----')
+print('Accuracy:', round(accuracy_score(y_test_class,y_test_class_pred_gbmc), 2))
+print('Precision:', round(precision_score(y_test_class,y_test_class_pred_gbmc), 2))
+print('Recall:', round(recall_score(y_test_class,y_test_class_pred_gbmc), 2))
+print('F1:', round(f1_score(y_test_class, y_test_class_pred_gbmc), 2))
+
+
+
+
+
+# # # FOR STACKING CLASSIFIER 
+def get_class_model():
+    best_rfc = RandomForestClassifier(**best_params_rfc)
+    best_xgbc = XGBClassifier(**best_params_xgbc)
+    best_gbmc = LGBMClassifier(**best_gbmc_params)
+    return best_rfc,best_xgbc,best_gbmc
