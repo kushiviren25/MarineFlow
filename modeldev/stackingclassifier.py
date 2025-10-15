@@ -1,57 +1,63 @@
+import pandas as pd
+import numpy as np
 from sklearn.ensemble import RandomForestClassifier, StackingClassifier
 from xgboost import XGBClassifier
+from lightgbm import LGBMClassifier
 from sklearn.linear_model import LogisticRegression
-from sklearn.model_selection import GridSearchCV
+from sklearn.model_selection import StratifiedKFold
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
-import pandas as pd 
+from sklearn.calibration import CalibratedClassifierCV
 from ModelTuned import get_class_model
-
-# Suppress printouts from GridSearchCV
 import warnings
 warnings.filterwarnings("ignore")
 
+# Load data
 train_df = pd.read_csv('marineflow_train.csv')
-test_df = pd.read_csv('marineflow_test.csv') 
+test_df = pd.read_csv('marineflow_test.csv')
 
- 
 leaked_cols = [
     'overage_hours_chargeable',
     'laytime_vs_allowed',
-    'demurrage_amount_usd',           
+    'demurrage_amount_usd',
     'demurrage_rate_usd_per_day'
 ]
 
-# Training data 
-X_train_class = train_df.drop(columns=[*leaked_cols,'demurrage_flag'])
-y_train_class = train_df['demurrage_flag']
+X_train = train_df.drop(columns=[*leaked_cols, 'demurrage_flag'])
+y_train = train_df['demurrage_flag']
 
-# Testing data 
-X_test_class = test_df.drop(columns=[*leaked_cols,'demurrage_flag'])
-y_test_class = test_df['demurrage_flag']
+X_test = test_df.drop(columns=[*leaked_cols, 'demurrage_flag'])
+y_test = test_df['demurrage_flag']
 
-
-best_rfc,best_xgbc,best_gbmc = get_class_model()
+# Get Bayesian-tuned base models
+best_rfc, best_xgbc, best_gbmc = get_class_model()
 
 base_estimators = [
-    ('rfc',best_rfc),
-    ('xgbc',best_xgbc),
-    ('lgbmc',best_gbmc),
+    ('rfc', best_rfc),
+    ('xgbc', best_xgbc),
+    ('lgbmc', best_gbmc),
 ]
 
-meta_model = LogisticRegression()
+#  Logistic Regression as meta-model, wrapped in probability calibration
+meta_model = LogisticRegression(max_iter=1000)
+calibrated_meta = CalibratedClassifierCV(meta_model, method='sigmoid', cv=5)
 
+# Stacking classifier
 stack_classifier = StackingClassifier(
-    estimators= base_estimators,
-    final_estimator= meta_model,
-    cv = 5
+    estimators=base_estimators,
+    final_estimator=calibrated_meta,
+    cv=5,
+    passthrough=True,  # Include base features in meta-model
+    n_jobs=-1
 )
 
-stack_classifier.fit(X_train_class,y_train_class)
+# Fit stacking classifier
+stack_classifier.fit(X_train, y_train)
 
-y_pred = stack_classifier.predict(X_test_class)
+# Predict and evaluate
+y_pred = stack_classifier.predict(X_test)
 
 print("STACKING METRICS")
-print("Accuracy:", accuracy_score(y_test_class, y_pred))
-print("Precision:", precision_score(y_test_class, y_pred))
-print("Recall:", recall_score(y_test_class, y_pred))
-print("F1 Score:", f1_score(y_test_class, y_pred))
+print("Accuracy:", accuracy_score(y_test, y_pred))
+print("Precision:", precision_score(y_test, y_pred))
+print("Recall:", recall_score(y_test, y_pred))
+print("F1 Score:", f1_score(y_test, y_pred))
