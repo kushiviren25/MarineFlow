@@ -1,13 +1,9 @@
-import pandas as pd
-import numpy as np
-from sklearn.ensemble import RandomForestClassifier, StackingClassifier
-from xgboost import XGBClassifier
-from lightgbm import LGBMClassifier
+import pandas as pd 
 from sklearn.linear_model import LogisticRegression
-from sklearn.model_selection import StratifiedKFold
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
-from sklearn.calibration import CalibratedClassifierCV
 from ModelTuned import get_class_model
+from sklearn.calibration import CalibratedClassifierCV
+from sklearn.ensemble import StackingClassifier
 import warnings
 warnings.filterwarnings("ignore")
 
@@ -28,36 +24,40 @@ y_train = train_df['demurrage_flag']
 X_test = test_df.drop(columns=[*leaked_cols, 'demurrage_flag'])
 y_test = test_df['demurrage_flag']
 
-# Get Bayesian-tuned base models
-best_rfc, best_xgbc, best_gbmc = get_class_model()
+# Call the models via model tuned function 
+best_rfc,best_xgbc,best_gbmc = get_class_model()
 
-base_estimators = [
-    ('rfc', best_rfc),
-    ('xgbc', best_xgbc),
-    ('lgbmc', best_gbmc),
+# Setup Base Estimators  
+base_estimator  = [
+    ('rfc',best_rfc),
+    ('xgbc',best_xgbc),
+    ('gbmc',best_gbmc),
 ]
 
-#  Logistic Regression as meta-model, wrapped in probability calibration
+# Set the Meta Model 
 meta_model = LogisticRegression(max_iter=1000)
-calibrated_meta = CalibratedClassifierCV(meta_model, method='sigmoid', cv=5)
 
-# Stacking classifier
-stack_classifier = StackingClassifier(
-    estimators=base_estimators,
-    final_estimator=calibrated_meta,
-    cv=5,
-    passthrough=True,  # Include base features in meta-model
-    n_jobs=-1
-)
+# Optimise better with Calibration
+calibrated_model = CalibratedClassifierCV(meta_model,cv = 5,method ='sigmoid')
 
-# Fit stacking classifier
-stack_classifier.fit(X_train, y_train)
+# Setup the Stacking Classifier 
+stacking_classifier = StackingClassifier(
+    estimators=base_estimator,
+    final_estimator=calibrated_model,
+    cv =5,
+    n_jobs=-1,
+    passthrough=True
+) 
 
-# Predict and evaluate
-y_pred = stack_classifier.predict(X_test)
+# Fit on training data 
+stacking_classifier.fit(X_train,y_train)
 
-print("STACKING METRICS")
-print("Accuracy:", accuracy_score(y_test, y_pred))
-print("Precision:", precision_score(y_test, y_pred))
-print("Recall:", recall_score(y_test, y_pred))
-print("F1 Score:", f1_score(y_test, y_pred))
+# Predictions on testing data
+y_test_class = stacking_classifier.predict(X_test)
+
+# Evaluation Metrics 
+print('Accuracy ;',accuracy_score(y_test,y_test_class))
+print('Precision ;',precision_score(y_test,y_test_class))
+print('Recall ;',recall_score(y_test,y_test_class))
+print('F1  ;',f1_score(y_test,y_test_class))
+
