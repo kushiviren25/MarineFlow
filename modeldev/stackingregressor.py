@@ -1,7 +1,7 @@
 from sklearn.linear_model import LinearRegression 
 from sklearn.metrics import mean_absolute_error,mean_squared_error,r2_score
 from sklearn.ensemble import StackingRegressor
-from TunedRegressor import regressor_model
+from modeldev.TunedRegressor import regressor_model
 import pandas as pd 
 import numpy as np 
 
@@ -13,7 +13,8 @@ leaked_cols = [
     'overage_hours_chargeable',
     'laytime_vs_allowed',
     'demurrage_amount_usd',
-    'demurrage_rate_usd_per_day'
+    'demurrage_rate_usd_per_day',
+    'demurrage_flag'
 ]
 
 X_train = train_df.drop(columns=[*leaked_cols, 'demurrage_amount_usd'])
