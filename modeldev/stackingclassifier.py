@@ -5,6 +5,7 @@ from modeldev.TunedClassifier import classifier_model
 from sklearn.calibration import CalibratedClassifierCV
 import warnings
 import logging
+import sys , io
 
 # Silence warnings and logs
 # warnings.filterwarnings("ignore")
@@ -29,8 +30,14 @@ y_train = train_df['demurrage_flag']
 X_test = test_df.drop(columns=[*leaked_cols, 'demurrage_flag'])
 y_test = test_df['demurrage_flag']
 
+silent_stdout = io.StringIO()
+original_stdout = sys.stdout
+sys.stdout = silent_stdout
+
 # Get tuned models
 best_rfc, best_xgbc, best_gbmc = classifier_model()
+
+sys.stdout = original_stdout
 
 # Force silent base models
 best_rfc.set_params(verbose=0)
@@ -68,3 +75,4 @@ print('Accuracy :', round(accuracy_score(y_test, y_pred), 2))
 print('Precision :', round(precision_score(y_test, y_pred), 2))
 print('Recall :', round(recall_score(y_test, y_pred), 2))
 print('F1 :', round(f1_score(y_test, y_pred), 2))
+
